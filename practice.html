@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kanji Writer Practice</title>
+    <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #333;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 90%;
+            width: 500px;
+        }
+
+        h1 {
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+            color: #1a1a1a;
+        }
+
+        #character-target {
+            margin: 0 auto 1.5rem auto;
+            border: 2px solid #e1e4e8;
+            border-radius: 12px;
+            background: #fff;
+            cursor: crosshair;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"] {
+            padding: 8px 12px;
+            border: 2px solid #e1e4e8;
+            border-radius: 8px;
+            font-size: 16px;
+            width: 60px;
+            text-align: center;
+        }
+
+        button {
+            padding: 8px 16px;
+            background-color: #007aff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        button.secondary {
+            background-color: #e1e4e8;
+            color: #333;
+        }
+
+        button.secondary:hover {
+            background-color: #d1d5db;
+        }
+
+        .status {
+            margin-top: 1rem;
+            font-size: 14px;
+            color: #666;
+            min-height: 20px;
+        }
+
+        .success {
+            color: #34c759;
+        }
+
+        .error {
+            color: #ff3b30;
+        }
+
+        /* Grid & Tabs */
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .tab-btn {
+            background: none;
+            color: #666;
+            border-radius: 4px;
+        }
+
+        .tab-btn.active {
+            background-color: #007aff;
+            color: white;
+        }
+
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        .char-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            padding: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+            background: #fafafa;
+        }
+
+        .char-card:hover {
+            background: #eef;
+            border-color: #ccf;
+        }
+
+        .char-main {
+            font-size: 24px;
+            font-weight: bold;
+            line-height: 1.2;
+        }
+
+        .char-sub {
+            font-size: 12px;
+            color: #888;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Kanji & Kana Practice</h1>
+
+        <div class="controls">
+            <input type="text" id="inputChar" value="あ" maxlength="1" placeholder="字">
+            <button onclick="loadFromInput()">Load</button>
+        </div>
+
+        <div id="character-target"></div>
+
+        <div class="controls">
+            <button onclick="writer.animateCharacter()" class="secondary">Animate</button>
+            <button onclick="writer.quiz()">Quiz (Draw)</button>
+        </div>
+
+        <div id="status" class="status">Enter a character to start</div>
+
+        <div style="margin-top: 2rem; width: 100%; border-top: 1px solid #eee; padding-top: 1rem;">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="setTab('hiragana')">Hiragana</button>
+                <button class="tab-btn" onclick="setTab('katakana')">Katakana</button>
+                <button class="tab-btn" onclick="setTab('kanji')">Kanji</button>
+            </div>
+
+            <h3>Available (<span id="count">0</span>)</h3>
+            <div id="grid"></div>
+        </div>
+    </div>
+
+    <script src="chars.js"></script>
+    <script src="romaji_map.js"></script>
+    <script>
+        let writer;
+        const size = Math.min(window.innerWidth - 60, 300);
+
+        // Data Processing
+        const RAW_CHARS = (typeof ALL_CHARS !== 'undefined') ? ALL_CHARS.filter(c => c.length === 1 && c !== "all") : [];
+
+        // Classify characters
+        const HIRAGANA_REGEX = /^[\u3040-\u309F]$/;
+        const KATAKANA_REGEX = /^[\u30A0-\u30FF]$/;
+
+        const DATA = {
+            hiragana: RAW_CHARS.filter(c => HIRAGANA_REGEX.test(c)),
+            katakana: RAW_CHARS.filter(c => KATAKANA_REGEX.test(c)),
+            kanji: RAW_CHARS.filter(c => !HIRAGANA_REGEX.test(c) && !KATAKANA_REGEX.test(c))
+        };
+
+        let currentTab = 'hiragana';
+
+        function setTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(b => {
+                b.classList.toggle('active', b.innerText.toLowerCase() === tab);
+            });
+            renderGrid();
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('grid');
+            const count = document.getElementById('count');
+            const chars = DATA[currentTab] || [];
+
+            count.innerText = chars.length;
+            grid.innerHTML = '';
+
+            const frag = document.createDocumentFragment();
+
+            chars.forEach(char => {
+                const card = document.createElement('div');
+                card.className = 'char-card';
+                card.onclick = () => loadChar(char);
+
+                const main = document.createElement('div');
+                main.className = 'char-main';
+                main.innerText = char;
+
+                const sub = document.createElement('div');
+                sub.className = 'char-sub';
+                sub.innerText = (typeof ROMAJI_MAP !== 'undefined') ? (ROMAJI_MAP[char] || '') : '';
+
+                card.appendChild(main);
+                card.appendChild(sub);
+                frag.appendChild(card);
+            });
+            grid.appendChild(frag);
+        }
+
+        function loadFromInput() {
+            loadChar(document.getElementById('inputChar').value);
+        }
+
+        function loadChar(char) {
+            if (!char) return;
+            document.getElementById('inputChar').value = char;
+            const target = document.getElementById('character-target');
+            const status = document.getElementById('status');
+
+            target.innerHTML = '';
+            status.innerText = 'Loading...';
+            status.className = 'status loading';
+
+            writer = HanziWriter.create('character-target', char, {
+                width: size,
+                height: size,
+                padding: 5,
+                showOutline: true,
+                strokeAnimationSpeed: 1,
+                delayBetweenStrokes: 200,
+                radicalColor: '#166534',
+                charDataLoader: function (char, onComplete) {
+                    // Try Local first (via GitHub raw which we are simulating as local path for now, 
+                    // ideally we host this properly, but for this file:// setup we use absolute path or relative?
+                    // Since it's an HTML file opened locally, we can't fetch file:/// easily due to CORS usually.
+                    // But we used GitHub Raw before. Let's stick to GitHub Raw but we have a Problem:
+                    // I pushed the old data, but NOT the new Hiragana data yet!
+                    // So Hiragana won't load from GitHub Raw until I push.
+                    // But I can't push easily without user Auth interaction every time? 
+                    // Wait, I can use a RELATIVE path if I run a local server, but just opening HTML file...
+                    // Chrome blocks local file fetch.
+
+                    // Workaround: We will use the `chars.js` trick again? No, too big.
+                    // We must use the unpkg URL for now, OR push the data to GitHub.
+                    // Users asked for "local", but `practice.html` is a local file.
+                    // The best way for a local HTML file to read local JSONs involves a local server.
+                    // OR... we rely on the fact that I just downloaded them to c:\kanji-writer\data.
+                    // But fetch('data/あ.json') requires a server.
+
+                    // Let's try the unpkg backup for now, OR prompt user I need to push.
+                    // AND I will try to use the `hanzi-writer-data-jp` unpkg link directly since I verified it exists online.
+                    // My previous download failure suggests maybe I can't download, but browser might be able to fetch.
+
+                    const url = `https://unpkg.com/hanzi-writer-data-jp@latest/${encodeURIComponent(char)}.json`;
+
+                    fetch(url)
+                        .then(res => {
+                            if (!res.ok) throw new Error('Failed');
+                            return res.json();
+                        })
+                        .then(data => {
+                            onComplete(data);
+                            status.innerText = 'Ready!';
+                            status.className = 'status success';
+                            writer.quiz();
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            status.innerText = 'Error loading ' + char;
+                            status.className = 'status error';
+                        });
+                }
+            });
+        }
+
+        window.onload = function () {
+            setTab('hiragana');
+            loadChar('あ');
+        };
+
+        document.getElementById('inputChar').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') loadFromInput();
+        });
+    </script>
+</body>
+
+</html>

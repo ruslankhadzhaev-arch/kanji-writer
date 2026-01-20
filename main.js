@@ -1826,7 +1826,7 @@ var canvasRenderer = {
   createRenderTarget: RenderTarget$1.init
 };
 var VERSION = "2.0";
-var getCharDataUrl = (char) => `https://unpkg.com/hanzi-writer-data-jp@latest/${char}.json`;
+var getCharDataUrl = (char) => `https://raw.githubusercontent.com/ruslankhadzhaev-arch/kanji-writer/main/data/${char}.json`;
 var defaultCharDataLoader = (char, onLoad, onError) => {
   const xhr = new XMLHttpRequest();
   if (xhr.overrideMimeType) {
