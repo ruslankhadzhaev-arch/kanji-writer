@@ -1,0 +1,10 @@
+{
+    "id": "kanji-writer",
+    "name": "Kanji Writer",
+    "version": "0.0.1",
+    "minAppVersion": "0.15.0",
+    "description": "Interactive Japanese character writing blocks using Hanzi Writer",
+    "author": "Nikita Smirnov",
+    "authorUrl": "https://github.com/pakrentos",
+    "isDesktopOnly": false
+}
